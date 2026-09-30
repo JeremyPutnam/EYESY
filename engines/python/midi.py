@@ -12,6 +12,25 @@ def _handle_note(eyesy, message):
         num = message.note 
         val = message.velocity
         if val > 0 and message.type == "note_on":
+
+
+            #Custom midi code for reset
+            if num == 65:
+                eyesy.reload_mode()
+                return
+
+            if num == 62:
+                eyesy.prev_mode()
+                return
+            
+            if num == 64:
+                eyesy.next_mode()
+                return
+
+            if num == 60:
+                eyesy.toggle_osd()
+                return
+
             eyesy.midi_notes[num] = 1
             # 1 is trigger source for note, 2 for notes or audio
             if eyesy.config["trigger_source"] == 1 or eyesy.config["trigger_source"] == 2: eyesy.trig = True 
@@ -27,6 +46,10 @@ def _handle_control_change(eyesy, message):
     if (message.channel + 1) == eyesy.config["midi_channel"]:
         num = message.control
         val = message.value
+
+        #Custom Controls
+
+
         if not eyesy.menu_mode : # don't update knobs in menu mode (interferes with test)
             if message.control == eyesy.config["knob1_cc"] : eyesy.knob_hardware[0] = val / 127.
             if message.control == eyesy.config["knob2_cc"] : eyesy.knob_hardware[1] = val / 127.

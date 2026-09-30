@@ -4,17 +4,15 @@ from ctypes import c_float
 import time
 import sys
 import psutil
-import math
 import traceback
-import liblo
+#import liblo
 import pygame
 from pygame.locals import *
 import midi
 import eyesy
-import osc
+#import osc
 import sound
 import osd
-import usbdrive
 from screen_main_menu import ScreenMainMenu
 from screen_test import ScreenTest
 from screen_video_settings import ScreenVideoSettings
@@ -23,7 +21,6 @@ from screen_wifi import ScreenWiFi
 from screen_applogs import ScreenApplogs
 from screen_midi_settings import ScreenMIDISettings
 from screen_midi_pc_mapping import ScreenMIDIPCMapping
-from screen_flash_drive import ScreenFlashDrive
 
 def exitexit(code):
     print("EXIT exiting\n")
@@ -35,12 +32,43 @@ def exitexit(code):
         audio_process.join()       # Ensure the process has fully terminated
     print("closing audio")
     audio_process.close()  # Now it's safe to close the process
-    print("closing midi")
     midi.close()
-    print("closing osc")
-    osc.close()
-    print("exiting...")
+    #osc.close()
     sys.exit(code)
+
+# Map specific keys to k values (1-10)
+KEY_MAPPING = {
+    pygame.K_1: 1,
+    pygame.K_2: 2,
+    pygame.K_3: 3,
+    pygame.K_4: 4,
+    pygame.K_5: 5,
+    pygame.K_6: 6,
+    pygame.K_7: 7,
+    pygame.K_8: 8,
+    pygame.K_9: 9,
+    pygame.K_0: 10,
+}
+
+def handle_key_events(eyesy):
+    # Process events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            exitexit(0)
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                exitexit(0)
+ 
+        if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+            key = event.key
+            v = 1 if event.type == pygame.KEYDOWN else 0
+
+            print(f"{key}, {v}")
+            # Check if the key is in our mapping
+            if key in KEY_MAPPING:
+                k = KEY_MAPPING[key]
+                # Call the dispatch function
+                eyesy.dispatch_key_event(k, v)
 
 print("starting...")
 
@@ -49,52 +77,36 @@ print("starting...")
 # it gets passed to the modes which use the audio midi and knob values
 eyesy = eyesy.Eyesy()
 
+eyesy.GRABS_PATH = "/home/pi/EYESY-data/Grabs/"
+eyesy.MODES_PATH = "/home/pi/EYESY_Modes_OSv3/"
+eyesy.SCENES_PATH = "/home/pi/EYESY-data/Scenes/"
+eyesy.SYSTEM_PATH = "/home/pi/EYESY-data/System/"
+
 # begin init
 try :     
     
-    # see if there is a USB drive and we can run from there
-    if usbdrive.mount_usb():
-        print("found USB drive, checking for modes")
-        if os.path.exists("/usbdrive/Modes"):
-            print("found USB drive with modes, using USB")
-            eyesy.GRABS_PATH =  "/usbdrive/Grabs/"
-            eyesy.MODES_PATH =  "/usbdrive/Modes/"
-            eyesy.SCENES_PATH = "/usbdrive/Scenes/"
-            eyesy.SYSTEM_PATH = "/usbdrive/System/"
-            eyesy.running_from_usb = True
-        else:
-            print("no modes found on USB drive, using internal")
-    else:
-        print("no USB found, using internal")
-   
-    eyesy.ensure_directories()
-
     # load config
     eyesy.load_config_file()
 
-    # load palettes
-    eyesy.load_palettes()
-
     # setup osc and callbacks
-    osc.init(eyesy)
+    #osc.init(eyesy)
 
     # midi 
-    print("init midi")
     midi.init()
     eyesy.usb_midi_device = midi.input_port_usb
-    print(eyesy.usb_midi_device) 
 
     # setup alsa sound shared resources
-    print("init audio")
     BUFFER_SIZE = 100
-    shared_buffer = Array(c_float, BUFFER_SIZE, lock=True)  # Circular buffer, size + 1, last entry for trigger value
-    shared_buffer_r = Array(c_float, BUFFER_SIZE, lock=True)  # Circular buffer, size + 1, last entry for trigger value
+    shared_buffer = Array(c_float, BUFFER_SIZE + 1, lock=True)  # Circular buffer, size + 1, last entry for trigger value
+    shared_buffer_r = Array(c_float, BUFFER_SIZE + 1, lock=True)
     write_index = Value('i', 0)     # Write index for the buffer
+    atrig = Value('i', 0)           # audio trigger
     gain = Value('f', 0)
     peak = Value('f', 0)
     peak_r = Value('f', 0)
     lock = Lock()
 
+    print("########## CALLING AUDIO PROCESS ###########")
     # Start the audio processing in a separate process
     audio_process = Process(target=sound.audio_processing, args=(shared_buffer, shared_buffer_r, write_index, gain, peak, peak_r, lock))
     audio_process.start()
@@ -108,11 +120,11 @@ try :
     print("pygame version " + pygame.version.ver)
 
     # set led to running
-    osc.send("/led", 7) 
+    #osc.send("/led", 0) 
 
     # init fb and main surface hwscreen
     print("opening frame buffer...")
-    hwscreen = pygame.display.set_mode(eyesy.RES)
+    hwscreen = pygame.display.set_mode((0 ,0), pygame.FULLSCREEN)#eyesy.RES)
     eyesy.xres = hwscreen.get_width()
     eyesy.yres = hwscreen.get_height()
     print("opened screen at: " + str(hwscreen.get_size()))
@@ -129,7 +141,7 @@ try :
     # load modes, post banner if none found
     if not (eyesy.load_modes()) :
         print("no modes found.")
-        osd.loading_banner(hwscreen, "No Modes found. Insert USB drive with Modes folder and restart.")
+        osd.loading_banner(hwscreen, "No Modes found.  Insert USB drive with Modes folder and restart.")
         while True:
             # quit on esc
             for event in pygame.event.get():
@@ -148,16 +160,15 @@ try :
             eyesy.set_mode_by_index(i)
             mode = sys.modules[eyesy.mode]
         except AttributeError :
-            print("mode not found, or has error")
+            print("mode not found, probably has error")
             continue 
         try : 
             osd.loading_banner(hwscreen,"Loading " + str(eyesy.mode) )
             print("setup " + str(eyesy.mode))
             mode.setup(hwscreen, eyesy)
             eyesy.memory_used = psutil.virtual_memory()[2]
-        except Exception as e:
+        except :
             print("error in setup, or setup not found")
-            print(traceback.format_exc())
             continue
 
     # load screen grabs
@@ -181,9 +192,6 @@ try :
     # for flashing the LED
     midi_led_flashing = False
 
-    # LFO for simulated sound
-    undulate_p = 0
-
     # menu screens, need to load after pygame
     eyesy.menu_screens["home"] = ScreenMainMenu(eyesy)
     eyesy.menu_screens["test"] = ScreenTest(eyesy)
@@ -193,7 +201,6 @@ try :
     eyesy.menu_screens["applogs"] = ScreenApplogs(eyesy)
     eyesy.menu_screens["midi_settings"] = ScreenMIDISettings(eyesy)
     eyesy.menu_screens["midi_pc_mapping"] = ScreenMIDIPCMapping(eyesy)
-    eyesy.menu_screens["flashdrive"] = ScreenFlashDrive(eyesy)
     eyesy.switch_menu_screen("home")
     
     # used to measure fps
@@ -207,33 +214,27 @@ except Exception as e:
 while 1:
  
     # quit on esc
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            exitexit(0)
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                exitexit(0)
+    #for event in pygame.event.get():
+    #    if event.type == pygame.QUIT:
+    #        exitexit(0)
+    #    elif event.type == pygame.KEYDOWN:
+    #        if event.key == pygame.K_ESCAPE:
+    #            exitexit(0)
     # main loop
     try :
         # check for OSC
         # key events will be dispatched from here
-        # knobs from hardware
-        osc.recv()
+        #osc.recv()
+        handle_key_events(eyesy)
+        # for repeating keys held down
+        eyesy.update_key_repeater()
 
         # check MIDI
-        # matching CC merged with knobs
-        midi.recv_ttymidi(eyesy)
         midi.recv_usbmidi(eyesy)
 
         # get knobs, checking for override, and check for new note on
         # for the knobs, only changes are assinged
         eyesy.update_knobs_and_notes()
-
-        # for repeating keys held down
-        eyesy.update_key_repeater()
-
-        # check gain knob
-        eyesy.check_gain_knob()
 
         # sequence the knobs    
         # only changes assigned 
@@ -250,32 +251,21 @@ while 1:
             start = now
         
         # update new led
-        if (eyesy.new_led) :
-            osc.send("/led", eyesy.led)
+        #if (eyesy.new_led) :
+            #osc.send("/led", eyesy.led)
 
-        # get sound and trigger, unless trigger button is being pressed, then do the simulated sound
-        if not eyesy.key10_status:
-            with lock:
-                eyesy.audio_in[:] = shared_buffer[:]
-                eyesy.audio_in_r[:] = shared_buffer_r[:]
-                g = eyesy.config["audio_gain"]
-                gain.value = float((g * g * 50) + 1)  # map audio, make it big
-                # update audio trig and peak 
-                eyesy.audio_peak = peak.value
-                eyesy.audio_peak_r = peak_r.value
-                # trigger source 0 = audio, 2 = audio or notes
-                if (eyesy.config["trigger_source"] == 0 or eyesy.config["trigger_source"] == 2): 
-                    if (eyesy.audio_peak > 20000 or eyesy.audio_peak_r > 20000) : eyesy.trig = True
-        else:
-            # dont do simulated sound in menu mode cause it interferes with test screen
-            if not eyesy.menu_mode :
-                undulate_p += .005
-                undulate = ((math.sin(undulate_p * 2 * math.pi) + 1) * 2) + .5
-                for i,v in enumerate(eyesy.audio_in):
-                    eyesy.audio_in[i] = int(math.sin((i / 100) * 2 * math.pi * undulate) * 25000)
-                    eyesy.audio_in_r[i] = eyesy.audio_in[i]
-                eyesy.audio_peak = 25000 # also set peak value
-                eyesy.audio_peak_r = 25000 # also set peak value
+        # get sound and trigger
+        tmptrig = False
+        with lock:
+            eyesy.audio_in[:] = shared_buffer[:]
+            eyesy.audio_in_r[:] = shared_buffer_r[:]
+            # print("audio peak:", max(eyesy.audio_in), flush=True)
+            gain.value = float(eyesy.config["audio_gain"] / 100)
+            tmptrig = atrig.value
+            eyesy.audio_peak = peak.value
+      
+        # update audio trig 
+        if eyesy.config["trigger_source"] == 0 and tmptrig: eyesy.trig = True
         
         # set the mode on which to call draw
         try : 
@@ -312,6 +302,11 @@ while 1:
             try :
                 #mode.draw(hwscreen, eyesy)
                 mode.draw(mode_screen, eyesy)
+                #peak.value = eyesy.audio_peak
+
+                #radius = int(min(200, peak.value / 100))
+
+                #pygame.draw.circle(mode_screen, (255,255,255), (150,150), max(5,radius), 4)
             except Exception as e:   
                 eyesy.error = traceback.format_exc()
                 print("error with draw: " + eyesy.error)
@@ -339,18 +334,18 @@ while 1:
                 pygame.time.wait(200)
             # menu might signal restart
             if eyesy.restart :
-                print("restart requested from menu, restarting")
+                print("video res changed, restarting")
                 exitexit(1)
             # menu exits, clear screen
             if not eyesy.menu_mode :
                 hwscreen.fill(eyesy.bg_color) 
         
-        '''txt_str = " FPS:  "   + str(int(eyesy.fps)) + " "
+        txt_str = " FPS:  "   + str(int(eyesy.fps)) + " "
         text = eyesy.font.render(txt_str, True, eyesy.LGRAY, eyesy.BLACK)
         text_rect = text.get_rect()
         text_rect.x = 10
         text_rect.centery = 10
-        hwscreen.blit(text, text_rect)'''
+        hwscreen.blit(text, text_rect)
      
         pygame.display.flip()
         
@@ -358,7 +353,6 @@ while 1:
         eyesy.clear_flags()
          
     except Exception as e:   
-        eyesy.clear_flags() # don't keep doing things
         eyesy.error = traceback.format_exc()
         print("problem in main loop")
         print(eyesy.error)

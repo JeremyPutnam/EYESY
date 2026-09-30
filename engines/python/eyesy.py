@@ -1046,7 +1046,7 @@ class Eyesy:
                     self.next_scene()
                     self.key7_td = 0
                 if (k == 8)           : self.save_or_delete_scene(v)
-                if (k == 9 and v > 0) : self.screengrab_flag = True
+                if (k == 9 and v > 0) : self.reload_mode()
                 if (k == 10 and v > 0) : 
                     self.trig = True
                     self.key10_td = 0
