@@ -1,0 +1,4 @@
+# Installed into the repo venv (python3 -m venv --system-site-packages .venv).
+# Everything else comes from apt, see README.md.
+# apt python3-alsaaudio 0.8.4 crashes on pcm.read() under Python 3.10+.
+pyalsaaudio>=0.9
