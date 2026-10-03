@@ -34,20 +34,20 @@ def audio_processing(shared_buffer, shared_buffer_r, write_index, gain, peak, pe
     # PCM setup
     channels = 1
     format = alsaaudio.PCM_FORMAT_S16_LE
-    period_size = 32
-    rate = 44100  # Adjust as needed
+    period_size = 256
+    rate = 44100  # USB mic supports 44100 or 48000 only
     bytes_per_sample = 2  # S16_LE = 2 bytes per sample
 
-    # Open PCM using the correct index
+    # Open PCM using the correct index (named params need pyalsaaudio >= 0.9, see .venv)
     pcm = alsaaudio.PCM(
         type=alsaaudio.PCM_CAPTURE,
         mode=alsaaudio.PCM_NORMAL,
         cardindex=card_index,  # Now using the correct ALSA index
+        channels=channels,
+        rate=rate,
+        format=format,
+        periodsize=period_size
     )
-
-    pcm.setchannels(1)
-    pcm.setrate(44100)
-    pcm.setperiodsize(256)
 
     # Print ALSA PCM configuration
     print(pcm.dumpinfo())

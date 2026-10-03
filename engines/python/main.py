@@ -77,14 +77,19 @@ print("starting...")
 # it gets passed to the modes which use the audio midi and knob values
 eyesy = eyesy.Eyesy()
 
+# modes repo is cloned next to this repo (../../../EYESY_Modes_OSv3 from engines/python)
+REPO_PARENT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
 eyesy.GRABS_PATH = "/home/pi/EYESY-data/Grabs/"
-eyesy.MODES_PATH = "/home/pi/EYESY_Modes_OSv3/"
+eyesy.MODES_PATH = os.path.join(REPO_PARENT, "EYESY_Modes_OSv3") + "/"
 eyesy.SCENES_PATH = "/home/pi/EYESY-data/Scenes/"
 eyesy.SYSTEM_PATH = "/home/pi/EYESY-data/System/"
 
 # begin init
-try :     
-    
+try :
+
+    # create Grabs, Scenes, System folders (load_config_file's mkdir can't create parents)
+    eyesy.ensure_directories()
+
     # load config
     eyesy.load_config_file()
 
@@ -255,17 +260,18 @@ while 1:
             #osc.send("/led", eyesy.led)
 
         # get sound and trigger
-        tmptrig = False
         with lock:
             eyesy.audio_in[:] = shared_buffer[:]
             eyesy.audio_in_r[:] = shared_buffer_r[:]
             # print("audio peak:", max(eyesy.audio_in), flush=True)
-            gain.value = float(eyesy.config["audio_gain"] / 100)
-            tmptrig = atrig.value
+            g = eyesy.config["audio_gain"]
+            gain.value = float((g * g * 50) + 1)  # map audio, make it big (upstream v3.1)
             eyesy.audio_peak = peak.value
-      
-        # update audio trig 
-        if eyesy.config["trigger_source"] == 0 and tmptrig: eyesy.trig = True
+            eyesy.audio_peak_r = peak_r.value
+
+        # update audio trig, trigger source 0 = audio, 2 = audio or notes (upstream v3.1)
+        if (eyesy.config["trigger_source"] == 0 or eyesy.config["trigger_source"] == 2):
+            if (eyesy.audio_peak > 20000 or eyesy.audio_peak_r > 20000) : eyesy.trig = True
         
         # set the mode on which to call draw
         try : 
