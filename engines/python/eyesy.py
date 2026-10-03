@@ -61,6 +61,16 @@ class Eyesy:
             "knob3_cc": 22,
             "knob4_cc": 23,
             "knob5_cc": 24,
+            # second CC per knob, both work at once (default: Akai MPD32 dials, CC 12-16)
+            "knob1_cc_alt": 12,
+            "knob2_cc_alt": 13,
+            "knob3_cc_alt": 14,
+            "knob4_cc_alt": 15,
+            "knob5_cc_alt": 16,
+            "gain_cc": 17,  # mic gain, 0-127 -> audio_gain 0-1 (not saved to config.json)
+            "pad_channel": 2,  # pad note actions (midi.py) also accepted on this channel
+            "trigger_note": 67,  # fire a trigger
+            "auto_clear_note": 69,  # toggle trails (auto clear on/off)
             "auto_clear_cc": 25,
             "fg_palette_cc": -1,
             "bg_palette_cc": -1,
@@ -314,6 +324,15 @@ class Eyesy:
         self._validate_config_int("knob3_cc", -1, 127)
         self._validate_config_int("knob4_cc", -1, 127)
         self._validate_config_int("knob5_cc", -1, 127)
+        self._validate_config_int("knob1_cc_alt", -1, 127)
+        self._validate_config_int("knob2_cc_alt", -1, 127)
+        self._validate_config_int("knob3_cc_alt", -1, 127)
+        self._validate_config_int("knob4_cc_alt", -1, 127)
+        self._validate_config_int("knob5_cc_alt", -1, 127)
+        self._validate_config_int("gain_cc", -1, 127)
+        self._validate_config_int("pad_channel", 1, 16)
+        self._validate_config_int("trigger_note", -1, 127)
+        self._validate_config_int("auto_clear_note", -1, 127)
         self._validate_config_int("auto_clear_cc", -1, 127)
         self._validate_config_int("fg_palette_cc", -1, 127)
         self._validate_config_int("bg_palette_cc", -1, 127)
@@ -473,7 +492,8 @@ class Eyesy:
     def load_modes(self):
         print("loading modes...")
         got_a_mode = False # at least one mode
-        mode_folders = sorted(helpers.get_immediate_subdirectories(self.MODES_PATH), key=lambda s: s.lower() )
+        # skip hidden folders like .git when the modes folder is a git repo
+        mode_folders = sorted((d for d in helpers.get_immediate_subdirectories(self.MODES_PATH) if not d.startswith('.')), key=lambda s: s.lower() )
 
         for mode_folder in mode_folders :
             mode_name = str(mode_folder)

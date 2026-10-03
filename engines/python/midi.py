@@ -8,29 +8,38 @@ midi_clock_count = 0
 
 def _handle_note(eyesy, message):
     #print(f"Note message: {message}")
-    if (message.channel + 1) == eyesy.config["midi_channel"]:
-        num = message.note 
-        val = message.velocity
+    channel = message.channel + 1
+    num = message.note
+    val = message.velocity
+
+    # Custom pad actions, accepted on midi_channel or pad_channel (MPD32 pads send on ch 2)
+    if channel in (eyesy.config["midi_channel"], eyesy.config["pad_channel"]) and val > 0 and message.type == "note_on":
+        if num == 65:
+            eyesy.reload_mode()
+            return
+
+        if num == 62:
+            eyesy.prev_mode()
+            return
+
+        if num == 64:
+            eyesy.next_mode()
+            return
+
+        if num == 60:
+            eyesy.toggle_osd()
+            return
+
+        if num == eyesy.config["trigger_note"]:
+            eyesy.trig = True
+            return
+
+        if num == eyesy.config["auto_clear_note"]:
+            eyesy.toggle_auto_clear()
+            return
+
+    if channel == eyesy.config["midi_channel"]:
         if val > 0 and message.type == "note_on":
-
-
-            #Custom midi code for reset
-            if num == 65:
-                eyesy.reload_mode()
-                return
-
-            if num == 62:
-                eyesy.prev_mode()
-                return
-            
-            if num == 64:
-                eyesy.next_mode()
-                return
-
-            if num == 60:
-                eyesy.toggle_osd()
-                return
-
             eyesy.midi_notes[num] = 1
             # 1 is trigger source for note, 2 for notes or audio
             if eyesy.config["trigger_source"] == 1 or eyesy.config["trigger_source"] == 2: eyesy.trig = True 
@@ -51,12 +60,13 @@ def _handle_control_change(eyesy, message):
 
 
         if not eyesy.menu_mode : # don't update knobs in menu mode (interferes with test)
-            if message.control == eyesy.config["knob1_cc"] : eyesy.knob_hardware[0] = val / 127.
-            if message.control == eyesy.config["knob2_cc"] : eyesy.knob_hardware[1] = val / 127.
-            if message.control == eyesy.config["knob3_cc"] : eyesy.knob_hardware[2] = val / 127.
-            if message.control == eyesy.config["knob4_cc"] : eyesy.knob_hardware[3] = val / 127.
-            if message.control == eyesy.config["knob5_cc"] : eyesy.knob_hardware[4] = val / 127.
-        if message.control == eyesy.config["auto_clear_cc"] : 
+            # each knob listens on its main CC and its _alt CC
+            for i in range(5):
+                if message.control in (eyesy.config[f"knob{i+1}_cc"], eyesy.config[f"knob{i+1}_cc_alt"]) :
+                    eyesy.knob_hardware[i] = val / 127.
+        if message.control == eyesy.config["gain_cc"] :
+            eyesy.config["audio_gain"] = val / 127.
+        if message.control == eyesy.config["auto_clear_cc"] :
             if val > 64 :
                 eyesy.auto_clear = True
             else:
