@@ -33,7 +33,7 @@ engines/python/main.py         entry point; data and mode paths at lines 80-85
 engines/python/eyesy.py        state, DEFAULT_CONFIG and validation, mode/scene loading, keys
 engines/python/sound.py        ALSA capture subprocess (USB mic)
 engines/python/midi.py         MIDI input and mappings (_handle_note, _handle_control_change)
-platforms/pi4/                 Pi 4 platform: README (setup, MIDI table), run.sh, requirements.txt
+platforms/pi4/                 Pi 4 platform: README (setup, boot, MIDI table), run.sh, eyesy.service, autostart .desktop
 platforms/eyesy_cm3/           upstream CM3 reference only; NOT deployed (see Rules)
 web/                           Flask editor, unused on the Pi
 ../EYESY_Modes_OSv3/<Mode>/    one mode per folder: main.py (+ optional assets)
@@ -41,14 +41,18 @@ web/                           Flask editor, unused on the Pi
 ```
 
 ## Commands
-No systemd service is installed. The engine is run by hand:
+EYESY starts at boot as a systemd **user** service:
+- `~/.config/autostart/eyesy.desktop` runs `systemctl --user start eyesy` once the autologin desktop is up.
+- Both that file and the unit are symlinks to `platforms/pi4/`.
 ```bash
-platforms/pi4/run.sh                         # start (works from any directory)
-platforms/pi4/run.sh 2>&1 | tee /tmp/eyesy.log   # start and keep a log
-pkill -INT -f 'python -u main.py'            # stop (or Esc in the window)
+systemctl --user {start|stop|restart|status} eyesy
+journalctl --user-unit eyesy -f              # logs (journal is volatile, lost on reboot)
+platforms/pi4/run.sh                         # run by hand; stop the service first
 ```
-- Logs go to stdout only; there is no journal unit.
-- The CM3 units (`eyesypy`, etc.) assume `/home/music/EYESY_OS`. Do not install them without asking.
+- **Only one engine at a time.** A second instance gets `ALSAAudioError: Device or resource busy [hw:3]` and runs silent.
+- Before running the engine for a test, check `systemctl --user is-active eyesy` and stop it if it is running. Restore it afterwards.
+- `Restart=on-failure`: Esc (exit 0) stays stopped, while a crash or a video resolution change (exit 1) restarts.
+- The CM3 units (`eyesypy`, etc.) assume `/home/music/EYESY_OS`. Do not install them.
 
 Syntax-check modes. `PYTHONPYCACHEPREFIX` keeps `__pycache__` out of the repo:
 ```bash
@@ -82,6 +86,7 @@ Find out what a MIDI control sends: open every `mido.get_input_names()` port con
 - Loading (`eyesy.py:492-508`):
   - Every non-hidden subfolder is loaded with `imp.load_source(folder_name, folder/main.py)`, sorted case-insensitively.
   - A mode that fails to load is logged and skipped.
+  - Config `mode_order` (a list of folder names) loads those modes first, in that order, and the engine starts on the first one. It is currently set to the four new modes (Prism Rings, Spectrum Ribbons, Color Bloom, Shard Grid). Unknown names are ignored.
   - `setup()` runs for every mode at startup (`main.py:162-177`).
 - Mode API: `setup(screen, etc)` and `draw(screen, etc)`, where `etc` is the `Eyesy` object.
   - Inputs: `etc.knob1`…`knob5` (0–1), `etc.audio_in[0..99]` (int16 range), `etc.audio_peak`, `etc.trig` (True for one frame), `etc.xres`/`yres`, `etc.midi_notes`.
@@ -99,6 +104,7 @@ Find out what a MIDI control sends: open every `mido.get_input_names()` port con
 - Config keys are in `eyesy.py` DEFAULT_CONFIG and validated in `validate_config`. Missing keys in `config.json` fall back to the defaults.
 - `knobN_cc` (20–24) **and** `knobN_cc_alt` (12–16, the top dials) both drive knob N.
 - `gain_cc` 17 sets `audio_gain` in memory only (not saved).
+- `fg_palette_cc` 18 and `bg_palette_cc` 19 choose the palette as `val * len(palettes) // 128` (upstream used `% len`, which wrapped 3 times). These are also in memory only.
 - Pads send on **channel 2**. `_handle_note` accepts pad actions on `midi_channel` (1) or `pad_channel` (2):
   - 60 = on-screen display, 62/64 = previous/next mode, 65 = reload (these four are hard-coded).
   - `trigger_note` 67 fires `etc.trig`.

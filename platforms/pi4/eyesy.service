@@ -1,0 +1,16 @@
+# EYESY video engine as a systemd user service (runs as the desktop user, no root).
+# Started at login by eyesy-autostart.desktop, once the Wayland desktop is up.
+# Install: see platforms/pi4/README.md (Start at boot).
+
+[Unit]
+Description=EYESY Video Engine
+
+[Service]
+Type=simple
+ExecStart=%h/Visualizer/EYESY/platforms/pi4/run.sh
+# pygame needs the desktop's Wayland display
+Environment=WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 PYTHONUNBUFFERED=1
+# Esc exits 0 and stays stopped; crashes and video resolution changes (exit 1) restart
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=5

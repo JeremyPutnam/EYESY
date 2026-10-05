@@ -72,11 +72,12 @@ class Eyesy:
             "trigger_note": 67,  # fire a trigger
             "auto_clear_note": 69,  # toggle trails (auto clear on/off)
             "auto_clear_cc": 25,
-            "fg_palette_cc": -1,
-            "bg_palette_cc": -1,
+            "fg_palette_cc": 18,  # MPD32 dial 7
+            "bg_palette_cc": 19,  # MPD32 dial 8
             "mode_cc": -1,
             "notes_change_mode": False,
-            "pc_map": {}
+            "pc_map": {},
+            "mode_order": []  # mode folder names loaded first, in this order (startup mode = first)
         }
         
         self.config = {}
@@ -338,6 +339,9 @@ class Eyesy:
         self._validate_config_int("bg_palette_cc", -1, 127)
         self._validate_config_int("mode_cc", -1, 127)
         self._validate_config_int("notes_change_mode", 0, 1)
+        order = self.config.get("mode_order")
+        if not (isinstance(order, list) and all(isinstance(m, str) for m in order)):
+            self.config["mode_order"] = self.DEFAULT_CONFIG["mode_order"]
 
     def save_config_file(self) :
         config_file = self.SYSTEM_PATH + "config.json"
@@ -494,6 +498,9 @@ class Eyesy:
         got_a_mode = False # at least one mode
         # skip hidden folders like .git when the modes folder is a git repo
         mode_folders = sorted((d for d in helpers.get_immediate_subdirectories(self.MODES_PATH) if not d.startswith('.')), key=lambda s: s.lower() )
+        # modes named in config mode_order go first, in that order; names not found are ignored
+        first = list(dict.fromkeys(m for m in self.config["mode_order"] if m in mode_folders))
+        mode_folders = first + [m for m in mode_folders if m not in first]
 
         for mode_folder in mode_folders :
             mode_name = str(mode_folder)

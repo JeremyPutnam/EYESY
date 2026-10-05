@@ -34,9 +34,33 @@ python3 -m venv --system-site-packages .venv
 .venv/bin/pip install --ignore-installed -r platforms/pi4/requirements.txt
 ```
 
-## Run
+## Start at boot
+
+The Pi logs in to the desktop automatically. At login, the desktop autostart entry starts EYESY as a systemd **user** service (no root). Both files live in this folder and are linked into `~/.config`:
 
 ```bash
+systemctl --user link ~/Visualizer/EYESY/platforms/pi4/eyesy.service
+mkdir -p ~/.config/autostart
+ln -s ~/Visualizer/EYESY/platforms/pi4/eyesy-autostart.desktop ~/.config/autostart/eyesy.desktop
+```
+
+Day to day:
+
+```bash
+systemctl --user start eyesy        # start
+systemctl --user stop eyesy         # stop (Esc in the window also quits until next boot)
+systemctl --user restart eyesy      # restart, e.g. after editing modes
+journalctl --user-unit eyesy -f     # live log
+```
+
+A crash restarts the engine after 2 s.
+
+To turn off start at boot: `rm ~/.config/autostart/eyesy.desktop`
+
+## Run by hand
+
+```bash
+systemctl --user stop eyesy         # only one instance can hold the mic
 platforms/pi4/run.sh
 ```
 
@@ -60,6 +84,8 @@ All values can be overridden in `/home/pi/EYESY-data/System/config.json`. Use `-
 |---|---|---|---|
 | Top dials 1–5 | CC 12–16, ch 1 | `knob1_cc_alt`…`knob5_cc_alt` | Knobs 1–5 (CC 20–24 via `knobN_cc` also work) |
 | Dial 6 | CC 17, ch 1 | `gain_cc` | Mic gain (not saved on restart) |
+| Dial 7 | CC 18, ch 1 | `fg_palette_cc` | Foreground palette, sweeps all 43 once (not saved on restart) |
+| Dial 8 | CC 19, ch 1 | `bg_palette_cc` | Background palette, same |
 | Pad | note 67, ch 2 | `trigger_note` | Fire a trigger (drives `T -` modes) |
 | Pad | note 69, ch 2 | `auto_clear_note` | Trails on/off |
 | Pad | note 62 / 64 | hard-coded | Previous / next mode |
@@ -67,3 +93,13 @@ All values can be overridden in `/home/pi/EYESY-data/System/config.json`. Use `-
 | Pad | note 65 | hard-coded | Reload current mode |
 
 Pad notes are accepted on `midi_channel` (1) or `pad_channel` (2).
+
+## Mode order
+
+Modes load alphabetically by folder name, and EYESY starts on the first one. To put favorites first, list their folder names in `config.json`:
+
+```json
+"mode_order": ["S - Prism Rings", "S - Spectrum Ribbons", "T - Color Bloom", "T - Shard Grid"]
+```
+
+Then restart with `systemctl --user restart eyesy`.

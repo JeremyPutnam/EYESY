@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=EYESY
+Comment=Start the EYESY video engine (eyesy.service) when the desktop starts
+Exec=systemctl --user start eyesy.service
+X-GNOME-Autostart-enabled=true

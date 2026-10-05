@@ -71,10 +71,11 @@ def _handle_control_change(eyesy, message):
                 eyesy.auto_clear = True
             else:
                 eyesy.auto_clear = False
-        if message.control == eyesy.config["fg_palette_cc"] : 
-            eyesy.fg_palette = val % len(eyesy.palettes)
-        if message.control == eyesy.config["bg_palette_cc"] : 
-            eyesy.bg_palette = val % len(eyesy.palettes)
+        # one sweep of the dial covers every palette once (upstream used val % len, which wrapped 3 times)
+        if message.control == eyesy.config["fg_palette_cc"] :
+            eyesy.fg_palette = val * len(eyesy.palettes) // 128
+        if message.control == eyesy.config["bg_palette_cc"] :
+            eyesy.bg_palette = val * len(eyesy.palettes) // 128
         if message.control == eyesy.config["mode_cc"] : 
             eyesy.mode_index = val % len(eyesy.mode_names)
             eyesy.set_mode_by_index(eyesy.mode_index)
