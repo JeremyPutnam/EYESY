@@ -86,10 +86,10 @@ Find out what a MIDI control sends: open every `mido.get_input_names()` port con
 - Loading (`eyesy.py:492-508`):
   - Every non-hidden subfolder is loaded with `imp.load_source(folder_name, folder/main.py)`, sorted case-insensitively.
   - A mode that fails to load is logged and skipped.
-  - Config `mode_order` (a list of folder names) loads those modes first, in that order, and the engine starts on the first one. It is currently set to the four new modes (Prism Rings, Spectrum Ribbons, Color Bloom, Shard Grid). Unknown names are ignored.
+  - Config `mode_order` (a list of folder names) loads those modes first, in that order, and the engine starts on the first one. It currently starts with the custom modes, newest first (OIIA Spin, Prism Rings, Spectrum Ribbons, Color Bloom, Shard Grid). Unknown names are ignored.
   - `setup()` runs for every mode at startup (`main.py:162-177`).
 - Mode API: `setup(screen, etc)` and `draw(screen, etc)`, where `etc` is the `Eyesy` object.
-  - Inputs: `etc.knob1`…`knob5` (0–1), `etc.audio_in[0..99]` (int16 range), `etc.audio_peak`, `etc.trig` (True for one frame), `etc.xres`/`yres`, `etc.midi_notes`.
+  - Inputs: `etc.knob1`…`knob5` (0–1), `etc.knob6` (0–1, optional extra knob bound with `knob6_cc`, default off; use `getattr(etc, 'knob6', 0)` so modes still run on stock EYESY), `etc.audio_in[0..99]` (int16 range), `etc.audio_peak`, `etc.trig` (True for one frame), `etc.xres`/`yres`, `etc.midi_notes`.
   - Helpers: `etc.color_picker(v)`, `etc.color_picker_bg(v)`, `etc.color_picker_lfo(v, rate)`.
 - Knob conventions (from the header comments in 106 modes):
   - Knob 4 = foreground color, Knob 5 = background color.
@@ -97,6 +97,7 @@ Find out what a MIDI control sends: open every `mido.get_input_names()` port con
   - `T -` modes (27 of 29) only animate on `etc.trig`.
 - Adding a mode:
   - Create `../EYESY_Modes_OSv3/S - Name/main.py` (or `T - Name`), run py_compile, and restart the engine. Commit it in the modes repo.
+  - **Always add a new mode to the start of `mode_order`** in `/home/pi/EYESY-data/System/config.json` (owner's standing request), so the engine boots into it.
   - Key 9 or MIDI note 65 reloads the current mode live.
 - Scenes are saved in `Scenes/` and recalled by program change through `pc_map` in config. None are saved yet.
 

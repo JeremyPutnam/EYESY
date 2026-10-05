@@ -67,6 +67,7 @@ class Eyesy:
             "knob3_cc_alt": 14,
             "knob4_cc_alt": 15,
             "knob5_cc_alt": 16,
+            "knob6_cc": -1,  # extra knob6 for modes, set to the slider CC
             "gain_cc": 17,  # mic gain, 0-127 -> audio_gain 0-1 (not saved to config.json)
             "pad_channel": 2,  # pad note actions (midi.py) also accepted on this channel
             "trigger_note": 67,  # fire a trigger
@@ -127,6 +128,7 @@ class Eyesy:
         self.knob3 = 1
         self.knob4 = 1
         self.knob5 = 1
+        self.knob6 = 0  # extra knob for modes that use it (knob6_cc), not in scenes
        
         # knob values used internally
         self.knob = [.2] * 5
@@ -330,6 +332,7 @@ class Eyesy:
         self._validate_config_int("knob3_cc_alt", -1, 127)
         self._validate_config_int("knob4_cc_alt", -1, 127)
         self._validate_config_int("knob5_cc_alt", -1, 127)
+        self._validate_config_int("knob6_cc", -1, 127)
         self._validate_config_int("gain_cc", -1, 127)
         self._validate_config_int("pad_channel", 1, 16)
         self._validate_config_int("trigger_note", -1, 127)

@@ -86,6 +86,7 @@ All values can be overridden in `/home/pi/EYESY-data/System/config.json`. Use `-
 | Dial 6 | CC 17, ch 1 | `gain_cc` | Mic gain (not saved on restart) |
 | Dial 7 | CC 18, ch 1 | `fg_palette_cc` | Foreground palette, sweeps all 43 once (not saved on restart) |
 | Dial 8 | CC 19, ch 1 | `bg_palette_cc` | Background palette, same |
+| (unbound) | — | `knob6_cc` | Extra knob 6 for modes that use it (off, -1) |
 | Pad | note 67, ch 2 | `trigger_note` | Fire a trigger (drives `T -` modes) |
 | Pad | note 69, ch 2 | `auto_clear_note` | Trails on/off |
 | Pad | note 62 / 64 | hard-coded | Previous / next mode |

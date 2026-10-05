@@ -64,6 +64,8 @@ def _handle_control_change(eyesy, message):
             for i in range(5):
                 if message.control in (eyesy.config[f"knob{i+1}_cc"], eyesy.config[f"knob{i+1}_cc_alt"]) :
                     eyesy.knob_hardware[i] = val / 127.
+            if message.control == eyesy.config["knob6_cc"] :
+                eyesy.knob6 = val / 127.
         if message.control == eyesy.config["gain_cc"] :
             eyesy.config["audio_gain"] = val / 127.
         if message.control == eyesy.config["auto_clear_cc"] :
