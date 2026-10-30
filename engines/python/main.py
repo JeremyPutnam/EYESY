@@ -84,6 +84,48 @@ eyesy.MODES_PATH = os.path.join(REPO_PARENT, "EYESY_Modes_OSv3") + "/"
 eyesy.SCENES_PATH = "/home/pi/EYESY-data/Scenes/"
 eyesy.SYSTEM_PATH = "/home/pi/EYESY-data/System/"
 
+# modes on a USB stick (<stick>/Modes/<mode>/main.py) are used instead of the modes repo
+USB_MOUNT_ROOT = "/media/pi"
+USB_MOUNT_WAIT = 15  # seconds to wait at boot for the desktop to mount a plugged in stick
+
+def find_usb_modes():
+    try :
+        sticks = sorted(os.listdir(USB_MOUNT_ROOT))
+    except Exception :
+        return None
+    for stick in sticks :
+        path = os.path.join(USB_MOUNT_ROOT, stick, "Modes")
+        try :
+            if any(os.path.isfile(os.path.join(path, m, "main.py")) for m in os.listdir(path)) :
+                return path + "/"
+        except Exception :
+            pass
+    return None
+
+# True if a USB disk partition exists that is not mounted yet
+def usb_disk_unmounted():
+    try :
+        ids = [i for i in os.listdir("/dev/disk/by-id") if i.startswith("usb-")]
+        with open("/proc/mounts") as f :
+            mounted = set(line.split()[0] for line in f)
+    except Exception :
+        return False
+    parts = [i for i in ids if "-part" in i]
+    # a stick with no partition table is mounted as the whole disk
+    disks = [i for i in ids if "-part" not in i and not any(p.startswith(i + "-part") for p in parts)]
+    return any(os.path.realpath("/dev/disk/by-id/" + i) not in mounted for i in parts + disks)
+
+usb_modes = find_usb_modes()
+wait_until = time.time() + USB_MOUNT_WAIT
+while usb_modes is None and usb_disk_unmounted() and time.time() < wait_until :
+    time.sleep(0.5)
+    usb_modes = find_usb_modes()
+if usb_modes :
+    print("loading modes from USB: " + usb_modes)
+    eyesy.MODES_PATH = usb_modes
+else :
+    print("no Modes folder on USB, loading modes from " + eyesy.MODES_PATH)
+
 # begin init
 try :
 

@@ -80,13 +80,18 @@ Find out what a MIDI control sends: open every `mido.get_input_names()` port con
 
 ## Modes and scenes
 - Paths (`main.py:80-85`):
-  - `MODES_PATH` = `EYESY_Modes_OSv3/` next to this repo (resolved relative to `main.py`).
+  - `MODES_PATH` = `EYESY_Modes_OSv3/` next to this repo (resolved relative to `main.py`), **unless a USB stick has modes**:
+    - At startup, `find_usb_modes()` in `main.py` uses the first `/media/pi/<stick>/Modes/` that holds at least one `<mode>/main.py`.
+    - If a USB partition is present but not mounted yet, it waits up to 15 s (`USB_MOUNT_WAIT`) for the desktop (pcmanfm) to mount it. Otherwise it falls back to the repo.
+    - The log says `loading modes from USB: ...` or `no Modes folder on USB, ...`.
+    - Modes are read once at startup. Unplugging the stick while the engine runs breaks reloads (key 9) and any later asset loads.
+    - The stick is a copy, so new or changed modes must be copied over: `rsync -rt --modify-window=2 --exclude .git --exclude .gitignore --exclude __pycache__ ../EYESY_Modes_OSv3/ /media/pi/<stick>/Modes/`
   - `GRABS`, `SCENES`, and `SYSTEM` = `/home/pi/EYESY-data/...`, created by `eyesy.ensure_directories()` (`main.py:91`).
   - `/sdcard` and `/usbdrive` (the upstream defaults) do not exist on the Pi.
 - Loading (`eyesy.py:492-508`):
   - Every non-hidden subfolder is loaded with `imp.load_source(folder_name, folder/main.py)`, sorted case-insensitively.
   - A mode that fails to load is logged and skipped.
-  - Config `mode_order` (a list of folder names) loads those modes first, in that order, and the engine starts on the first one. It currently starts with the custom modes, newest first (OIIA Spin, Prism Rings, Spectrum Ribbons, Color Bloom, Shard Grid). Unknown names are ignored.
+  - Config `mode_order` (a list of folder names) loads those modes first, in that order, and the engine starts on the first one. It is currently empty (cleared 2026-10-30 at the owner's request), so modes load alphabetically. Unknown names are ignored.
   - `setup()` runs for every mode at startup (`main.py:162-177`).
 - Mode API: `setup(screen, etc)` and `draw(screen, etc)`, where `etc` is the `Eyesy` object.
   - Inputs: `etc.knob1`…`knob5` (0–1), `etc.knob6` (0–1, optional extra knob bound with `knob6_cc`, default off; use `getattr(etc, 'knob6', 0)` so modes still run on stock EYESY), `etc.audio_in[0..99]` (int16 range), `etc.audio_peak`, `etc.trig` (True for one frame), `etc.xres`/`yres`, `etc.midi_notes`.
@@ -133,5 +138,5 @@ Find out what a MIDI control sends: open every `mido.get_input_names()` port con
 ## Known issues and open questions
 - UNVERIFIED: whether the mic's card index stays at 3 across reboots. The engine matches by name, but the shell commands use `hw:3,0`.
 - UNVERIFIED: whether the 20000 audio-trigger threshold suits this mic. Raw peaks were about 3,200–3,600 in a quiet room, so pads are the reliable trigger.
-- Not implemented: loading modes from a USB drive (planned; it would use the udisks auto-mount at `/media/pi/<label>/Modes/` and fall back to the sibling repo).
+- `AAAOGChompConveyor/` in the modes repo holds only an untracked `__pycache__`, so it fails to load (harmless, logged).
 - Not implemented: the web editor. `/reload_mode` sends OSC, which is disabled, and the editor expects `/sdcard` and needs `flask_sock`.

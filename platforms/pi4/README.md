@@ -104,3 +104,15 @@ Modes load alphabetically by folder name, and EYESY starts on the first one. To 
 ```
 
 Then restart with `systemctl --user restart eyesy`.
+
+## Modes from a USB stick
+
+To run modes from a USB stick, put them in a `Modes/` folder at the top of the stick, one folder per mode (each with its `main.py`). If one is found at startup, EYESY loads every mode from the stick instead of `EYESY_Modes_OSv3/`. Copy the modes repo onto a stick with:
+
+```bash
+rsync -rt --modify-window=2 --exclude .git --exclude .gitignore --exclude __pycache__ ~/Visualizer/EYESY_Modes_OSv3/ /media/pi/<stick>/Modes/
+```
+
+- Modes are read once, at startup. Plug the stick in before booting, or restart with `systemctl --user restart eyesy`. Leave the stick in while EYESY runs.
+- At boot, EYESY waits up to 15 seconds for the desktop to mount the stick. With no stick, or no `Modes/` folder on it, modes load from the repo as usual.
+- `mode_order` still applies to the stick's modes.
